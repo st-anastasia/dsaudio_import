@@ -1,0 +1,12 @@
+{
+  "name": "dsaudio_import",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "dre-hh",
+  "license": "MIT",
+  "dependencies": {
+    "musicmetadata": "^2.0.5",
+    "node-fetch": "^1.6.3",
+    "prompt-sync": "^4.1.4"
+  }
+}
