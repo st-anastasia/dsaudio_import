@@ -13,11 +13,13 @@ const destPath = `${path.dirname(srcPath)}/dsaudio`
 let sid = null
 
 const getFilesData = () => Promise.all(
-  fs.readdirSync(srcPath).filter( file => !file.startsWith('.')).map( file => 
+  fs.readdirSync(srcPath).filter( file => !file.startsWith('.')).map( file =>
     fetchFileData(file).then(metadata => {
-      console.log(`${metadata.artist} - ${metadata.title} : ${metadata.exists? 'V' : 'X'}`)
+      //console.log(`${metadata.artist} - ${metadata.title} : ${metadata.exists? 'V' : 'X'}`)
+      metadata.file = file;
+
       return(metadata)
-    }) 
+    })
   )
 )
 
@@ -28,11 +30,13 @@ const fetchFileData = (file) => {
       'additional=song_tag&sort_by=title&sort_direction=ASC&limit=100&' +
       `keyword=${encodeURIComponent(metadata.title)}`)
     .then(json => {
-      matchedSongs = json.data.songs.filter( song => {
-        //console.log( song.title + '<>' + metadata.title + '&' + song.additional.song_tag.artist  + '<>' + metadata.artist)
-        return song.title == metadata.title && 
-        song.additional.song_tag.artist == metadata.artist 
+      matchedSongs = (json.data && json.data.songs || []).filter( song => {
+        //console.log( song.title + '<>' + metadata.title + '&' + song.additional.song_tag.artist  + '<>' + metadata.artist[0])
+
+        return song.title.trim() == metadata.title.trim() &&
+          song.additional.song_tag.artist.trim() == metadata.artist[0].trim()
       })
+
       metadata.exists = matchedSongs.length > 0
       return metadata
     })
@@ -45,7 +49,7 @@ const readFileMetaData = (file) => {
       if (err) reject(err)
       resolve(metadata)
     })
-  })  
+  })
 }
 
 const createDestinationDir = () => {
@@ -65,7 +69,7 @@ const createPlaylist = (fileData, playlistName) => {
 
 const convert = fileDatas => {
   fileDatas.forEach( fileData => {
-    command = `ffmpeg -i "${srcPath}/${fileData.file}" -c:a libfdk_aac -profile:a aac_he -b:a 64k "${destPath}/${srcFolder}/${fileData.artist} - ${fileData.title}.m4a"`
+    command = `ffmpeg -i "${srcPath}/${fileData.file}" -c:a libfdk_aac -profile:a aac_he -b:a 64k -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vsync 2 "${destPath}/${srcFolder}/${fileData.artist[0]} - ${fileData.title}.m4a"`
     execSync(command)
   })
 }
@@ -77,11 +81,11 @@ const run = () => {
     createDestinationDir()
 
     const existingFiles = filesData.filter( fileData =>fileData.exists )
-    const newFiles = filesData.filter( fileData => !fileData.exists ) 
+    const newFiles = filesData.filter( fileData => !fileData.exists )
     createPlaylist(existingFiles, 'exist.m3u')
     createPlaylist(newFiles, 'new.m3u')
-    convert(newFiles)
+    //convert(newFiles)
   })
 }
 
-run()  
+run()

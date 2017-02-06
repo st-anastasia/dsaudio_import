@@ -9,7 +9,6 @@ const dsUrl = 'http://192.168.1.184:5000/webapi'
 const authenticate = () => {
   return new Promise( (resolve, reject) => {
     if(!sid) readSidFile()
-      console.log(sid)
     dsFetch('/AudioStation/search.cgi?' +
       'api=SYNO.AudioStation.Search&version=1&method=list&library=shared&' +
       'additional=song_tag&sort_by=title&sort_direction=ASC&limit=1&' +
@@ -17,7 +16,6 @@ const authenticate = () => {
     )
     .then(resolve)
     .catch( e => {
-      console.log(e)
       authAndStoreSid()
       .then(resolve).catch(reject)
     })
@@ -25,14 +23,14 @@ const authenticate = () => {
 }
 
 const readSidFile = () => {
-  try { 
+  try {
     sid = require("./.sid").sid
-  } catch (e) {console.log(e)}
+  } catch (e) {}
 }
 
 const dsFetch = (...args) => {
   if (!sid) {
-    return new Promise( (resolve, reject) => reject(Error("No Sid!")) ) 
+    return new Promise( (resolve, reject) => reject(Error("No Sid!")) )
   }
 
   args[0] = `${dsUrl}${args[0]}&_sid=${sid}`
@@ -46,11 +44,9 @@ const authAndStoreSid = () => {
   promptCredentials()
   const url = `${dsUrl}/auth.cgi?api=SYNO.API.Auth&version=6&method=login&session=DownloadStation&format=sid&` +
               `account=${credentials.username}&passwd=${credentials.password}`
-  console.log(url)
   return fetch(url)
   .then( res => res.json() )
   .then( json => {
-    console.log(json)
     sid = json.data.sid
     fs.writeFileSync(".sid.json", JSON.stringify({sid: sid} ), "utf8")
 
@@ -64,7 +60,7 @@ const promptCredentials = () => {
     credentials.username = prompt('username: ')
     credentials.password = prompt('password: ', {echo: '*'})
   }
-  
+
   return promptCredentials
 }
 
