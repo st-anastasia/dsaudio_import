@@ -5,6 +5,7 @@
   "author": "dre-hh",
   "license": "MIT",
   "dependencies": {
+    "async": "^2.1.4",
     "musicmetadata": "^2.0.5",
     "node-fetch": "^1.6.3",
     "prompt-sync": "^4.1.4"

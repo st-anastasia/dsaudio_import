@@ -34,7 +34,6 @@ const dsFetch = (...args) => {
   }
 
   args[0] = `${dsUrl}${args[0]}&_sid=${sid}`
-  console.log(args)
   return fetch.apply(this, args)
     .then( res => res.json() )
     .then( json => json)

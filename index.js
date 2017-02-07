@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 const fs = require('fs')
 const path = require('path')
-const mm = require('musicmetadata');
+const mm = require('musicmetadata')
 const execSync = require('child_process').execSync
+const exec = require('child_process').exec
+const eachLimit = require('async/eachLimit')
+const mapLimit = require('async/mapLimit')
 
 const ds = require('./ds-client')
 
@@ -12,16 +15,18 @@ const destPath = `${path.dirname(srcPath)}/dsaudio`
 
 let sid = null
 
-const getFilesData = () => Promise.all(
-  fs.readdirSync(srcPath).filter( file => !file.startsWith('.')).map( file =>
-    fetchFileData(file).then(metadata => {
-      //console.log(`${metadata.artist} - ${metadata.title} : ${metadata.exists? 'V' : 'X'}`)
-      metadata.file = file;
+const readSourceDir = () => fs.readdirSync(srcPath).filter( file => !file.startsWith('.') )
 
-      return(metadata)
-    })
-  )
-)
+const getFilesData = (files) => new Promise( (resolve, reject) => mapLimit(
+  files,
+  8,
+  (file, callback) => fetchFileData(file).then(metadata => {
+      console.log(`${metadata.artist} - ${metadata.title} : ${metadata.exists? 'V' : 'X'}`)
+      metadata.file = file
+      callback(null, metadata)
+  }),
+  (err, results) => resolve(results)
+))
 
 const fetchFileData = (file) => {
   return readFileMetaData(file).then( metadata => {
@@ -38,6 +43,7 @@ const fetchFileData = (file) => {
       })
 
       metadata.exists = matchedSongs.length > 0
+      if (metadata.exists) { metadata.dsPath = matchedSongs[0].path }
       return metadata
     })
   })
@@ -61,22 +67,28 @@ const createDestinationDir = () => {
 const createPlaylist = (fileData, playlistName) => {
   const writeStream = fs.createWriteStream(`${destPath}/playlists/${playlistName}`)
   fileData.forEach(fileData => {
-    writeStream.write(`../${srcFolder}/${fileData.artist} - ${fileData.title}.m4a\n`)
+    if (fileData.dsPath) {
+       writeStream.write(`${fileData.dsPath}\n`)
+    } else {
+      writeStream.write(`../${srcFolder}/${fileData.artist} - ${fileData.title}.m4a\n`)
+    }
  })
 
   writeStream.end()
 }
 
 const convert = fileDatas => {
-  fileDatas.forEach( fileData => {
-    command = `ffmpeg -i "${srcPath}/${fileData.file}" -c:a libfdk_aac -profile:a aac_he -b:a 64k -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vsync 2 "${destPath}/${srcFolder}/${fileData.artist[0]} - ${fileData.title}.m4a"`
-    execSync(command)
-  })
+  eachLimit(fileDatas, 6, (fileData, callback) => {
+      command = `ffmpeg -i "${srcPath}/${fileData.file}" -c:a libfdk_aac -profile:a aac_he -b:a 64k -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vsync 2 "${destPath}/${srcFolder}/${fileData.artist[0]} - ${fileData.title}.m4a"`
+      console.log(command)
+      exec(command, callback)
+    }
+  )
 }
 
 const run = () => {
   ds.authenticate()
-  .then(getFilesData)
+  .then(getFilesData(readSourceDir()))
   .then( filesData => {
     createDestinationDir()
 
